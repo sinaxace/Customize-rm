@@ -1,0 +1,124 @@
+#!/bin/bash
+# SYST13416 Assignment 3: Customize rm command
+# Author: Sina Maleki-Kheymehsari
+# Institution: Sheridan College
+# Date Completed: April 8, 2019
+
+#------------------The main program starts at the very bottom of this script--------------------#
+
+
+#User should be able to give five different file names in the script arguments 
+verify_file() {
+if [[ $# -eq 0 ]]; then #If the number of arguments are equal to zero then...
+	echo "Error: no file(s) specified (-h for help manual)"
+	exit 1 #Gracefully exits the running script because of the error
+fi
+
+for i in $1 $2 $3 $4 $5 #The loop stops when there is no more arguments to read
+do
+        if [ ! -f $i ]; then #True if $i is NOT a file
+        echo "Invalid Argument: $i isn't a file"
+	echo "Please pass on valid filenames when executing rmv -d"
+	exit 2 #An unsuccessful exit of the program due to invalid argument
+        fi
+done
+}
+
+#Before reading the file names entered, the script must check the first argument to see if it's an option of rmv
+rmv_options() {
+
+#-----Here's the link to where I learned how to use getopts(provided good explaination):
+#-----https://sookocheff.com/post/bash/parsing-bash-script-arguments-with-shopts/
+
+while getopts ":dhlse" opt; do #getopts validates all options in the string
+   case ${opt} in #opt variable checks which option was entered
+    d ) #Option -d for deleting
+	shift #Moves all argument variables ($1-9) to the left so that $1 is changed to $2 and so on ($1 was an rvm option, but not anymore)
+	verify_file $@ #Passes filenames to the function verify_file
+        `mv $@ ~/trashbin` #--> Moves all specified files to the trash bin in
+        echo "File(s) moved to trashbin folder in $HOME/trashbin" #Confirmation Message
+      ;;
+    h ) #Option -h for help 
+       help_manual #Calls the function help_manual for printing the rmv script's help manual
+      ;;
+    l ) #Option -l for listing trashbin contents
+        echo `ls -al ~/trashbin` #Lists everything inside trashbin folder including hiddin files and permissions
+      ;;
+    s ) #Option -s for showing trashbin size
+        echo -ne "Number of files in trashbin: " #-ne for printing in same line
+        echo `find ~/trashbin -type f | wc -l` #Piping regular files to wc -l counts files in directory  (find ___ -type f locates regular files in Trash Bin and wc -l counts lines) 
+      	echo -ne "Bit-Size of trashbin: "
+	printf "%s\n" `du -sh ~/trashbin` #du -sh counts the file size of everything in the trashbin folder
+	;;
+    e ) #Option -e for emptying the trash bin
+        echo "Are you sure you want to empty your trash bin?[Y/n]" #Prompts user to enter Y for yes or n for no
+        read i
+        if [ "$i" == "Y" ]; then #If user enters Y for yes 
+	  `rm -fr ~/trashbin/*` #All files and subdirectories will be deleted perminently
+          echo "-----> Trash Emptied <-----"
+          elif [ "$i" == "n" ]; then  #Else if user enters n for no...
+          echo "Operation Cancelled"
+          else #For all other inputs...
+          echo "Could not understand input, cancelling operation."
+        fi
+      ;;
+    \? ) #Occurs if the option doesn't exist
+        echo "rmv needs a VALID option (-h for help)"
+      ;;
+   esac
+done
+}
+
+help_manual(){ #Link to help document resource: https://www.cyberciti.biz/faq/using-heredoc-rediection-in-bash-shell-script-to-write-to-file/
+#Using the here document technique for printing the help manual
+var="$(cat <<EOF
+===============================================================================
+Usage: rmv [OPTION]... [FILE(s)]...
+Argument Limit: Maximum 5 Files
+
+  -d                    Stores up to five files passed onto the script in your 
+                        home directory's trashbin folder (~/trashbin)
+  -h                    Shows the help manual for rmv script
+  -l                    Lists all files in your home directory's trashbin folder
+  -s                    Shows the number of files in your trashbin
+  -e                    Perminently deletes all of your trashbin's contents
+
+This new rmv script is meant to replace the rm command by storing deleted 
+files in a trashbin folder instead of perminently deleting them right away.
+
+Note that the rmv script must have only one option on execution. It cannot
+execute without the appropriate command-line arguments to read.
+
+Also, if a trashbin folder doesnt exist in your account's home directory, rmv
+will automatically create the folder for you when you first execute the script.
+================================================================================
+EOF
+)"
+echo "$var"
+}
+
+################################################################
+#####################----Main Program----#######################
+################################################################
+
+#First of all, we need to check if the trashbin folder exists in the user's home directory
+if [ ! -d ~/trashbin ]; then #if directory does NOT exist...
+echo "trashbin doesn't exist in home directory, creating new one..."
+`mkdir trashbin` #Creates new trashbin folder
+`chmod 755 trashbin` #User has full permissions, others can only read and execute trashbin
+`mv trashbin ~` #Moves trashbin folder to home directory (~ is for home)
+echo "Your trashbin is ready for rmv"
+fi
+
+#Then we must check rmv's first argument to see if it is a valid option
+if [ "$1" == "-d" ] || [ "$1" == "-h" ] || [ "$1" == "-l" ] || [ "$1" == "-s" ] || [ "$1" == "-e" ] #Whether $1 is equal to this option OR (Symbol: ||)
+  then 
+	#if the first argument is equal to any of these options, execute function rmv_options
+  	rmv_options $@ #Passing all command-line arguments to function rmv_options as an array ($1 should be option for getOpts)
+  else
+  	echo "Nothing to do!" #rmv can only work with an option
+	echo  "Please enter a valid option (-h for help)"
+	exit 3 #Unsuccessful Build but with different exit code
+fi
+
+#-------------------------- End of Script -------------------------------#
